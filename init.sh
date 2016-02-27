@@ -48,7 +48,8 @@ echo "removing default server if exists"
 sudo rm -fr /etc/nginx/sites-available/default
 
 echo "deploy nginx config"
-sudo cp -R /opt/conf/*.conf /etc/nginx
+sudo cp -v -R /opt/conf/*.conf /etc/nginx
+sudo cp -v -R /opt/conf/snippets/*.conf /etc/nginx/snippets
 
 echo "restart nginx"
 sudo service nginx restart
