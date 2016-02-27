@@ -37,8 +37,9 @@ echo "gitting repo $1 and checking out branch $2"
 if [ -d /opt/conf ]
 then
         echo "repo exists, check out branch $2 and pull"
+		git -C /opt/conf fetch origin
+		git -C /opt/conf reset --hard origin/$2
         git -C /opt/conf checkout $2
-        git -C /opt/conf pull
 else
         echo "cloning repo $1 and checking out branch $2"
         git clone -b $2 $1 /opt/conf
