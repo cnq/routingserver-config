@@ -21,6 +21,16 @@ else
         echo "nginx is installed, skipping install"
 fi
 
+echo "check if nginx cache directory exists"
+if [ ! -x /var/cache/nginx ]
+then
+        echo "creating nginx cache directory"
+
+        mkdir /var/cache/nginx
+else
+        echo "nginx cache directory exists, skipping mkdir"
+fi
+
 echo "check if git is installed"
 if [ ! -x /usr/bin/git ]
 then
