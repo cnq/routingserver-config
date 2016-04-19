@@ -3,13 +3,23 @@ import shutil
 import json
 import applicationinsights
 import re
+import time
 
 logentryregex = re.compile('(?P<datetime>\d\d\d\d/\d\d/\d\d \d\d:\d\d:\d\d) \[(?P<level>[a-z]*)\] \d+#\d+: (\*(?P<connection>\d+) )?(?P<message>.*)', re.IGNORECASE)
 xstr = lambda s: s or ""
+tc = None
 
 def pushlogs(logdirectory, instrumentationkey):
-	print 'log directory: ' +  logdirectory + ' instrumentationkey: ' + instrumentationkey
-	stagingdirectory = logdirectory + '/appinsightslogstaging'
+	print 'log directory: ' + logdirectory + ' instrumentationkey: ' + instrumentationkey
+
+
+	global tc
+	if tc is None:
+	    tc = applicationinsights.TelemetryClient(instrumentationkey)
+
+	tc.track_event("Logging")
+
+	stagingdirectory = logdirectory + '/appinsights'
 
 	print 'move log files to a staging location, staging location will be created if does not exists'
 	files = os.listdir(logdirectory)
@@ -17,15 +27,9 @@ def pushlogs(logdirectory, instrumentationkey):
 	if not os.path.exists(stagingdirectory):
 		print 'staging directory ' + stagingdirectory + ' does not exist.  creating...'
 		os.makedirs(stagingdirectory)
-	for file in files:
-		srcfile = os.path.join(logdirectory, file)
-		if os.path.isfile(srcfile):
-			dstfile = os.path.join(stagingdirectory, file)
-			shutil.copy2(srcfile, dstfile)
-			os.remove(srcfile)
-		
-	print 'issuing reload logs command to nginx'
-	os.system("sudo kill -USR1 `cat /var/run/nginx.pid`")
+
+
+	os.system("sudo cp -l /var/log/nginx/* " + stagingdirectory + "; sudo rm -fr /var/log/nginx; sudo mkdir -m 777 /var/log/nginx; sudo kill -USR1 `cat /var/run/nginx.pid`; sleep 1")
 
 	stagedfiles = os.listdir(stagingdirectory)
 	for stagedfile in stagedfiles:
@@ -39,22 +43,21 @@ def pushlogs(logdirectory, instrumentationkey):
 			print 'accountname: ' + accountname
 			print 'appname: ' + appname
 			if logtype == 'access':
-				processaccesslog(stagedfilepath, accountname, appname, instrumentationkey)
+				processaccesslog(stagedfilepath, accountname, appname)
 				os.remove(stagedfilepath)
 			elif logtype == 'error':
-				processerrorlog(stagedfilepath, accountname, appname, instrumentationkey)
+				processerrorlog(stagedfilepath, accountname, appname)
 				os.remove(stagedfilepath)
 			else:
 				print 'unknow file type: ' + stagedfile
 		elif len(nametokens) == 2:
-			processlog(stagedfilepath, instrumentationkey)
+			processlog(stagedfilepath)
 			os.remove(stagedfilepath)
 		else:
 			print 'unknow file type: ' + stagedfile
 
-def processaccesslog(path, account, app, instrumentationkey):
+def processaccesslog(path, account, app):
 	print 'processing access log: ' + path
-	tc = applicationinsights.TelemetryClient(instrumentationkey)
 	with open(path) as file:
 		for line in file:
 			logevent = json.loads(line)
@@ -63,7 +66,7 @@ def processaccesslog(path, account, app, instrumentationkey):
 					success = False
 			url = logevent['scheme'] + '://' + logevent['host'] + logevent['request_uri']
 			duration = int(float(logevent['request_time']) * 1000)
-			tc.track_request( \
+			tc.track_request(\
 					url, \
 					url, \
 					success, \
@@ -93,9 +96,8 @@ def processaccesslog(path, account, app, instrumentationkey):
 					})
 	tc.flush()
 
-def processerrorlog(path, account, app, instrumentationkey):
+def processerrorlog(path, account, app):
 	print 'processing error log: ' + path
-	tc = applicationinsights.TelemetryClient(instrumentationkey)
 	with open(path) as file:
 		for line in file:
 			match = logentryregex.match(line)
@@ -112,9 +114,8 @@ def processerrorlog(path, account, app, instrumentationkey):
 				tc.track_trace(line)
 	tc.flush()
 
-def processlog(path, instrumentationkey):
+def processlog(path):
 	print 'processing log: ' + path
-	tc = applicationinsights.TelemetryClient(instrumentationkey)
 	with open(path) as file:
 		for line in file:
 			match = logentryregex.match(line)
@@ -136,13 +137,15 @@ def main(args=None):
 
     print("Starting application insights logging process.")
 
-    logdirectory = "/var/log/nginx/"
+    logdirectory = "/var/log/"
     instrumentationkey = ""
 
     with open('/opt/conf/logging/instrumentationkey.txt', 'r') as myfile:
-        instrumentationkey=myfile.read().replace('\n', '')
+        instrumentationkey = myfile.read().replace('\n', '')
 
     pushlogs(logdirectory, instrumentationkey)
+    print("Sleep for 5 seconds")
+    time.sleep(5)
 
 if __name__ == "__main__":
     main()

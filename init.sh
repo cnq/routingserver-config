@@ -86,7 +86,7 @@ else
 fi
 
 echo "writing application insights instrumentation key"
-echo $3 > /opt/conf/logging/instrumentationkey.txt
+sudo echo $3 > /opt/conf/logging/instrumentationkey.txt
 
 
 echo "removing default server if exists"
@@ -101,3 +101,6 @@ sudo cp -v -R /opt/conf/logging/appinsightslogger.conf /etc/init
 
 echo "restart nginx"
 sudo service nginx restart
+
+echo "restart appinsightslogger"
+sudo initctl start appinsightslogger
