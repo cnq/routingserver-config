@@ -103,4 +103,5 @@ echo "restart nginx"
 sudo service nginx restart
 
 echo "restart appinsightslogger"
-sudo initctl start appinsightslogger
+sudo initctl start appinsightslogger || sudo initctl restart appinsightslogger
+
