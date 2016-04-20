@@ -10,51 +10,58 @@ xstr = lambda s: s or ""
 tc = None
 
 def pushlogs(logdirectory, instrumentationkey):
-	print 'log directory: ' + logdirectory + ' instrumentationkey: ' + instrumentationkey
+    print 'log directory: ' + logdirectory + ' instrumentationkey: ' + instrumentationkey
+    
+    
+    global tc
+    if tc is None:
+        tc = applicationinsights.TelemetryClient(instrumentationkey)
+    
+    tc.track_event("Logging")
+    
+    stagingdirectory = logdirectory + '/appinsights'
+    
+    print 'move log files to a staging location, staging location will be created if does not exists'
+    os.system("sudo mkdir -p -m 777 " + stagingdirectory)
+    
+    if len(os.listdir(stagingdirectory)) > 0:
+        print 'the staging directory ' + stagingdirectory + ' has files that have not yet been processed.  processing these before moving in new files'
+        processfiles(stagingdirectory)
+    else:
+        print 'copying from nginx log location'
+        os.system("sudo cp -l /var/log/nginx/* " + stagingdirectory + "; sudo rm -fr /var/log/nginx; sudo mkdir -m 777 /var/log/nginx; sudo kill -USR1 `cat /var/run/nginx.pid`; sleep 1")
+        processfiles(stagingdirectory)
 
 
-	global tc
-	if tc is None:
-	    tc = applicationinsights.TelemetryClient(instrumentationkey)
-
-	tc.track_event("Logging")
-
-	stagingdirectory = logdirectory + '/appinsights'
-
-	print 'move log files to a staging location, staging location will be created if does not exists'
-	files = os.listdir(logdirectory)
-	#create staging location if it does not exists
-	if not os.path.exists(stagingdirectory):
-		print 'staging directory ' + stagingdirectory + ' does not exist.  creating...'
-		os.makedirs(stagingdirectory)
 
 
-	os.system("sudo cp -l /var/log/nginx/* " + stagingdirectory + "; sudo rm -fr /var/log/nginx; sudo mkdir -m 777 /var/log/nginx; sudo kill -USR1 `cat /var/run/nginx.pid`; sleep 1")
-
-	stagedfiles = os.listdir(stagingdirectory)
-	for stagedfile in stagedfiles:
-		print 'processing ' + stagedfile
-		stagedfilepath = os.path.join(stagingdirectory, stagedfile)
-		nametokens = stagedfile.split('.')
-		if len(nametokens) == 4:
-			accountname = nametokens[0]
-			appname = nametokens[1]
-			logtype = nametokens[2]
-			print 'accountname: ' + accountname
-			print 'appname: ' + appname
-			if logtype == 'access':
-				processaccesslog(stagedfilepath, accountname, appname)
-				os.remove(stagedfilepath)
-			elif logtype == 'error':
-				processerrorlog(stagedfilepath, accountname, appname)
-				os.remove(stagedfilepath)
-			else:
-				print 'unknow file type: ' + stagedfile
-		elif len(nametokens) == 2:
-			processlog(stagedfilepath)
-			os.remove(stagedfilepath)
-		else:
-			print 'unknow file type: ' + stagedfile
+def processfiles(stagingdirectory):
+    stagedfiles = os.listdir(stagingdirectory)
+    for stagedfile in stagedfiles:
+        print 'processing ' + stagedfile
+        stagedfilepath = os.path.join(stagingdirectory, stagedfile)
+        nametokens = stagedfile.split('.')
+        if len(nametokens) == 4:
+            accountname = nametokens[0]
+            appname = nametokens[1]
+            logtype = nametokens[2]
+            print 'accountname: ' + accountname
+            print 'appname: ' + appname
+            if logtype == 'access':
+            	processaccesslog(stagedfilepath, accountname, appname)
+            	os.remove(stagedfilepath)
+            elif logtype == 'error':
+            	processerrorlog(stagedfilepath, accountname, appname)
+            	os.remove(stagedfilepath)
+            else:
+                print 'unknow file type: ' + stagedfile
+                os.remove(stagedfilepath)
+        elif len(nametokens) == 2:
+            processlog(stagedfilepath)
+            os.remove(stagedfilepath)
+        else:
+            print 'unknow file type: ' + stagedfile
+            os.remove(stagedfilepath)
 
 def processaccesslog(path, account, app):
 	print 'processing access log: ' + path
@@ -136,16 +143,17 @@ def processlog(path):
 def main(args=None):
 
     print("Starting application insights logging process.")
+    print("Sleep for 5 seconds")
+    time.sleep(5)
 
-    logdirectory = "/var/log/"
+    logdirectory = "/var/log"
     instrumentationkey = ""
 
     with open('/opt/conf/logging/instrumentationkey.txt', 'r') as myfile:
         instrumentationkey = myfile.read().replace('\n', '')
 
     pushlogs(logdirectory, instrumentationkey)
-    print("Sleep for 5 seconds")
-    time.sleep(5)
+
 
 if __name__ == "__main__":
     main()
