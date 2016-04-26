@@ -69,13 +69,15 @@ def processaccesslog(path, account, app):
 		for line in file:
 			logevent = json.loads(line)
 			success = True
+			if int(logevent['server_level']) == 1 and logevent['cache_status_regular'] != "HIT":
+					continue
 			if int(logevent['status']) >= 400:
 					success = False
-			url = logevent['scheme'] + '://' + logevent['host'] + logevent['request_uri']
+			request_url = logevent['request_scheme'] + '://' + logevent['request_host_header'] + logevent['request_uri']
 			duration = int(float(logevent['request_time']) * 1000)
 			tc.track_request(\
-					url, \
-					url, \
+					request_url, \
+					request_url, \
 					success, \
 					logevent['event_time'], \
 					duration, \
@@ -84,22 +86,27 @@ def processaccesslog(path, account, app):
 					{ \
 						'account': account, \
 						'app': app, \
-						'remoteaddress': logevent['remote_addr'], \
-						'useragent': logevent['http_user_agent'], \
-						'referrer': logevent['http_referrer'], \
-						'bytes_sent_to_client': logevent['bytes_sent'], \
-						'incoming_request_length': logevent['request_length'], \
-						'connection_number': logevent['connection'], \
-						'connection_request_count': logevent['connection_requests'], \
-						'host': logevent['host'], \
-						'query_string': logevent['query_string'], \
 						'request': logevent['request'], \
-						'server_name': logevent['server_name'], \
-						'server_port': logevent['server_port'], \
-						'scheme': logevent['scheme'], \
-						'protocol': logevent['server_protocol'], \
-						'request_country': logevent['geoip_country_code'], \
-						'cache_status': logevent['upstream_cache_status'] \
+						'request_query_string': logevent['request_query_string'], \
+						'request_method': logevent['request_method'], \
+						'request_length': logevent['request_length'], \
+						'request_referrer': logevent['request_referrer'], \
+						'request_user_agent': logevent['request_user_agent'], \
+						'request_mainstream_user_agent': logevent['request_mainstream_user_agent'], \
+						'requestor_ipaddress': logevent['requestor_ipaddress'], \
+						'requestor_country': logevent['requestor_country'], \
+						'requestor_user': logevent['requestor_user'], \
+						'connection_id': logevent['connection_id'], \
+						'connection_request_count': logevent['connection_request_count'], \
+						'server_level': logevent['server_level'], \
+						'cache_status_regular': logevent['cache_status_regular'], \
+						'cache_status_bot': logevent['cache_status_bot'], \
+						'route_used': logevent['route_used'], \
+						'backend_target': logevent['backend_target'], \
+						'backend_request_url': logevent['backend_request_url'], \
+						'backend_user_agent_sent': logevent['backend_user_agent_sent'], \
+						'bytes_sent': logevent['bytes_sent'], \
+						'status': logevent['status'] \
 					})
 	tc.flush()
 
