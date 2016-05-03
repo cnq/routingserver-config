@@ -22,7 +22,7 @@ else
 fi
 
 echo "disable nginx log rotation if it exists"
-if [ -x /etc/logrotate.d/nginx ]
+if [ -e /etc/logrotate.d/nginx ]
 then
         echo "nginx log rotation exists, disabling it"
 
