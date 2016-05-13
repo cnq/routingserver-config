@@ -67,7 +67,13 @@ def processaccesslog(path, account, app):
 	print 'processing access log: ' + path
 	with open(path) as file:
 		for line in file:
-			logevent = json.loads(line)
+			logevent = None
+			try:
+					logevent = json.loads(line)
+			except:
+					tc.track_trace('BAD ACCESSLOG ENTRY - ' + line)
+					continue
+
 			success = True
 			if int(logevent['server_level']) == 1 and logevent['cache_status_regular'] != "HIT":
 					continue
@@ -143,8 +149,6 @@ def processlog(path):
 			else:
 				tc.track_trace(line)
 	tc.flush()
-
-	
 
 
 def main(args=None):
