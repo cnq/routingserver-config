@@ -71,49 +71,55 @@ def processaccesslog(path, account, app):
 			try:
 					logevent = json.loads(line)
 			except:
-					tc.track_trace('BAD ACCESSLOG ENTRY - ' + line)
+					tc.track_trace('BAD ACCESSLOG ENTRY.  Could not load json - ' + line)
 					continue
 
-			success = True
-			if int(logevent['server_level']) == 1 and logevent['cache_status_regular'] != "HIT":
+			try:
+				success = True
+				if int(logevent['server_level']) == 1 and logevent['cache_status_regular'] != "HIT":
+						continue
+				if int(logevent['status']) >= 400:
+						success = False
+				request_url = logevent['request_scheme'] + '://' + logevent['request_host_header'] + logevent['request_uri']
+				duration = int(float(logevent['request_time']) * 1000)
+				tc.track_request(\
+						request_url, \
+						request_url, \
+						success, \
+						logevent['event_time'], \
+						duration, \
+						logevent['status'], \
+						logevent['request_method'], \
+						{ \
+							'account': account, \
+							'app': app, \
+							'request': logevent['request'], \
+							'request_query_string': logevent['request_query_string'], \
+							'request_method': logevent['request_method'], \
+							'request_length': logevent['request_length'], \
+							'request_referrer': logevent['request_referrer'], \
+							'request_user_agent': logevent['request_user_agent'], \
+							'request_mainstream_user_agent': logevent['request_mainstream_user_agent'], \
+							'requestor_ipaddress': logevent['requestor_ipaddress'], \
+							'requestor_country': logevent['requestor_country'], \
+							'requestor_user': logevent['requestor_user'], \
+							'connection_id': logevent['connection_id'], \
+							'connection_request_count': logevent['connection_request_count'], \
+							'server_level': logevent['server_level'], \
+							'cache_status_regular': logevent['cache_status_regular'], \
+							'cache_status_bot': logevent['cache_status_bot'], \
+							'route_used': logevent['route_used'], \
+							'backend_target': logevent['backend_target'], \
+							'backend_request_url': logevent['backend_request_url'], \
+							'backend_user_agent_sent': logevent['backend_user_agent_sent'], \
+							'bytes_sent': logevent['bytes_sent'], \
+							'status': logevent['status'], \
+							'logtime': logevent['event_time'] \
+						})
+			except:
+					tc.track_trace('BAD ACCESSLOG ENTRY.  Could not process - ' + line)
 					continue
-			if int(logevent['status']) >= 400:
-					success = False
-			request_url = logevent['request_scheme'] + '://' + logevent['request_host_header'] + logevent['request_uri']
-			duration = int(float(logevent['request_time']) * 1000)
-			tc.track_request(\
-					request_url, \
-					request_url, \
-					success, \
-					logevent['event_time'], \
-					duration, \
-					logevent['status'], \
-					logevent['request_method'], \
-					{ \
-						'account': account, \
-						'app': app, \
-						'request': logevent['request'], \
-						'request_query_string': logevent['request_query_string'], \
-						'request_method': logevent['request_method'], \
-						'request_length': logevent['request_length'], \
-						'request_referrer': logevent['request_referrer'], \
-						'request_user_agent': logevent['request_user_agent'], \
-						'request_mainstream_user_agent': logevent['request_mainstream_user_agent'], \
-						'requestor_ipaddress': logevent['requestor_ipaddress'], \
-						'requestor_country': logevent['requestor_country'], \
-						'requestor_user': logevent['requestor_user'], \
-						'connection_id': logevent['connection_id'], \
-						'connection_request_count': logevent['connection_request_count'], \
-						'server_level': logevent['server_level'], \
-						'cache_status_regular': logevent['cache_status_regular'], \
-						'cache_status_bot': logevent['cache_status_bot'], \
-						'route_used': logevent['route_used'], \
-						'backend_target': logevent['backend_target'], \
-						'backend_request_url': logevent['backend_request_url'], \
-						'backend_user_agent_sent': logevent['backend_user_agent_sent'], \
-						'bytes_sent': logevent['bytes_sent'], \
-						'status': logevent['status'] \
-					})
+
 	tc.flush()
 
 def processerrorlog(path, account, app):
@@ -154,8 +160,6 @@ def processlog(path):
 def main(args=None):
 
     print("Starting application insights logging process.")
-    print("Sleep for 5 seconds")
-    time.sleep(5)
 
     logdirectory = "/var/log"
     instrumentationkey = ""
@@ -163,7 +167,10 @@ def main(args=None):
     with open('/opt/conf/logging/instrumentationkey.txt', 'r') as myfile:
         instrumentationkey = myfile.read().replace('\n', '')
 
-    pushlogs(logdirectory, instrumentationkey)
+    while 1:
+        pushlogs(logdirectory, instrumentationkey)
+        print("Waiting 5 seconds before next round...")
+        time.sleep(5)
 
 
 if __name__ == "__main__":
