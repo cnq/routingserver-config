@@ -17,8 +17,6 @@ def pushlogs(logdirectory, instrumentationkey):
     if tc is None:
         tc = applicationinsights.TelemetryClient(instrumentationkey)
     
-    tc.track_event("Logging")
-    
     stagingdirectory = logdirectory + '/appinsights'
     
     print 'move log files to a staging location, staging location will be created if does not exists'
